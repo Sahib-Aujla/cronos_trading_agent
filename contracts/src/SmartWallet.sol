@@ -4,6 +4,11 @@ pragma solidity ^0.8.0;
 contract SmartWallet {
     error SMARTWALLET_NOT_OWNER();
     error SMARTWALLET_NOT_AGENT();
+    error SMARTWALLET_TOKEN_NOT_ALLOWED();
+    error SMARTWALLET_DAILY_LIMIT_REACHED();
+
+    event PaymentExecuted(address indexed token, address indexed to, uint256 amount);
+
     address public owner;
     address public agent;
     uint256 public dailyLimit;
@@ -32,6 +37,25 @@ contract SmartWallet {
         agent = _agent;
         dailyLimit = _dailyLimit;
         lastReset = block.timestamp;
+    }
+
+    function executePayment(address token, address to, uint256 amount) external onlyAgent {
+        _reset();
+        if (!allowedTokens[token]) {
+            revert SMARTWALLET_TOKEN_NOT_ALLOWED();
+        }
+        if (!allowedRecipients[to]) {
+            revert SMARTWALLET_TOKEN_NOT_ALLOWED();
+        }
+        if (spentToday + amount > dailyLimit) {
+            revert SMARTWALLET_DAILY_LIMIT_REACHED();
+        }
+
+        spentToday += amount;
+        emit PaymentExecuted(token, to, amount);
+
+        (bool success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", to, amount));
+        require(success, "TRANSFER_FAILED");
     }
 
     function allowOrRevokeRecipient(address _recipient, bool _allowed) external onlyOwner {

@@ -32,8 +32,8 @@ contract SmartWallet {
         _;
     }
 
-    constructor(address _owner, address _agent, uint256 _dailyLimit) {
-        owner = _owner;
+    constructor( address _agent, uint256 _dailyLimit) {
+        owner = msg.sender;
         agent = _agent;
         dailyLimit = _dailyLimit;
         lastReset = block.timestamp;

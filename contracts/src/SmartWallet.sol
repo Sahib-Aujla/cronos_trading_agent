@@ -32,7 +32,7 @@ contract SmartWallet {
         _;
     }
 
-    constructor( address _agent, uint256 _dailyLimit) {
+    constructor(address _agent, uint256 _dailyLimit) {
         owner = msg.sender;
         agent = _agent;
         dailyLimit = _dailyLimit;

@@ -24,38 +24,100 @@ class MCPClient {
             apiKey: ANTHROPIC_API_KEY,
         });
         this.mcp = new index_js_1.Client({ name: "mcp-client-cli", version: "1.0.0" });
-        // Register local tools so the model can call them without a remote MCP server
-        this.tools.push({
-            name: "price_get_cro",
-            description: "Fetch current CRO price in USD (local)",
-        });
-        this.tools.push({
-            name: "trade_execute",
-            description: "Execute a trade (simulated local handler)",
-        });
-        this.tools.push({
-            name: "orderbook_get",
-            description: "Return orderbook snapshot (local stub)",
-        });
+        // ── Properly formatted tools with required input_schema ──
+        this.tools = [
+            {
+                name: "price_get_cro",
+                description: "Fetch the current price of CRO in USDC from CoinGecko",
+                input_schema: {
+                    type: "object",
+                    properties: {},
+                    required: [],
+                },
+            },
+            {
+                name: "trade_execute",
+                description: "Execute a simulated trade between two tokens",
+                input_schema: {
+                    type: "object",
+                    properties: {
+                        side: {
+                            type: "string",
+                            enum: ["buy", "sell"],
+                            description: "Whether to buy or sell",
+                        },
+                        amount: {
+                            type: "number",
+                            description: "Amount of the input token to trade",
+                        },
+                        tokenIn: {
+                            type: "string",
+                            description: "Symbol of the token being sold/spent",
+                        },
+                        tokenOut: {
+                            type: "string",
+                            description: "Symbol of the token being received",
+                        },
+                    },
+                    required: ["side", "amount"],
+                    additionalProperties: false,
+                },
+            },
+            {
+                name: "orderbook_get",
+                description: "Get a snapshot of the current orderbook for a trading pair",
+                input_schema: {
+                    type: "object",
+                    properties: {
+                        pair: {
+                            type: "string",
+                            description: "Trading pair (e.g. 'CRO_USDC', 'ETH_USDT')",
+                        },
+                        depth: {
+                            type: "integer",
+                            description: "Number of price levels to return per side",
+                            default: 10,
+                        },
+                    },
+                    required: ["pair"],
+                    additionalProperties: false,
+                },
+            },
+        ];
+        // Local tool implementations
         this.localToolHandlers["price_get_cro"] = async () => {
-            const price = await (0, priceFeed_1.getCroPriceInUsdc)();
-            return { content: JSON.stringify({ price }) };
+            try {
+                const price = await (0, priceFeed_1.getCroPriceInUsdc)();
+                return { content: JSON.stringify({ price, currency: "USDC", timestamp: new Date().toISOString() }) };
+            }
+            catch (err) {
+                return { content: JSON.stringify({ error: "Failed to fetch price", details: String(err) }) };
+            }
         };
-        this.localToolHandlers["trade_execute"] = async (args) => {
-            const body = args ?? {};
+        this.localToolHandlers["trade_execute"] = async (args = {}) => {
+            const { side, amount, tokenIn = "?", tokenOut = "?" } = args;
             return {
                 content: JSON.stringify({
                     status: "simulated",
-                    detail: `Simulated ${body.side ?? "?"} ${body.amount ?? 0} ${body.tokenIn ?? ""} -> ${body.tokenOut ?? ""}`,
+                    message: `Simulated ${side?.toUpperCase() ?? "?"} order executed`,
+                    detail: `${amount ?? "?"} ${tokenIn} → ${tokenOut}`,
+                    timestamp: new Date().toISOString(),
                 }),
             };
         };
-        this.localToolHandlers["orderbook_get"] = async (args) => {
-            const pair = (args && (args.pair || args.pairName)) ?? "unknown";
-            return { content: JSON.stringify({ pair, bids: [], asks: [] }) };
+        this.localToolHandlers["orderbook_get"] = async (args = {}) => {
+            const pair = args.pair || "UNKNOWN";
+            return {
+                content: JSON.stringify({
+                    pair,
+                    timestamp: new Date().toISOString(),
+                    bids: [],
+                    asks: [],
+                    note: "This is a simulated empty orderbook snapshot",
+                }),
+            };
         };
     }
-    // methods will go here
     async connectToServer(serverScriptPath) {
         try {
             const isJs = serverScriptPath.endsWith(".js");
@@ -64,9 +126,7 @@ class MCPClient {
                 throw new Error("Server script must be a .js or .py file");
             }
             const command = isPy
-                ? process.platform === "win32"
-                    ? "python"
-                    : "python3"
+                ? process.platform === "win32" ? "python" : "python3"
                 : process.execPath;
             this.transport = new stdio_js_1.StdioClientTransport({
                 command,
@@ -74,17 +134,16 @@ class MCPClient {
             });
             await this.mcp.connect(this.transport);
             const toolsResult = await this.mcp.listTools();
-            this.tools = toolsResult.tools.map((tool) => {
-                return {
-                    name: tool.name,
-                    description: tool.description,
-                    input_schema: tool.inputSchema,
-                };
-            });
-            console.log("Connected to server with tools:", this.tools.map(({ name }) => name));
+            // MCP → Anthropic format conversion
+            this.tools = toolsResult.tools.map((tool) => ({
+                name: tool.name,
+                description: tool.description,
+                input_schema: tool.inputSchema, // MCP uses camelCase, Anthropic wants snake_case
+            }));
+            console.log("Connected to MCP server with tools:", this.tools.map(({ name }) => name));
         }
         catch (e) {
-            console.log("Failed to connect to MCP server: ", e);
+            console.error("Failed to connect to MCP server:", e);
             throw e;
         }
     }
@@ -95,71 +154,79 @@ class MCPClient {
                 content: query,
             },
         ];
-        const response = await this.anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
-            messages,
-            tools: this.tools,
-        });
-        const finalText = [];
-        for (const content of response.content) {
-            if (content.type === "text") {
-                finalText.push(content.text);
+        let finalText = [];
+        // We'll loop until we get a final text response (no more tool calls)
+        while (true) {
+            const response = await this.anthropic.messages.create({
+                model: "claude-sonnet-4-20250514", // ← update when newer model available
+                max_tokens: 1200,
+                messages,
+                tools: this.tools.length > 0 ? this.tools : undefined,
+            });
+            // Collect text content
+            for (const block of response.content) {
+                if (block.type === "text") {
+                    finalText.push(block.text);
+                }
             }
-            else if (content.type === "tool_use") {
-                const toolName = content.name;
-                const toolArgs = content.input;
-                // If we have a local handler for the tool, call it directly
+            // Handle tool use
+            const toolUseBlocks = response.content.filter(b => b.type === "tool_use");
+            if (toolUseBlocks.length === 0) {
+                // No more tool calls → final answer
+                break;
+            }
+            for (const toolBlock of toolUseBlocks) {
+                const toolName = toolBlock.name;
+                const toolArgs = toolBlock.input;
+                let result;
                 if (this.localToolHandlers[toolName]) {
-                    const result = await this.localToolHandlers[toolName](toolArgs);
-                    finalText.push(`[Local tool ${toolName} with args ${JSON.stringify(toolArgs)}]`);
-                    messages.push({
-                        role: "user",
-                        content: typeof result === "string" ? result : (result.content ?? JSON.stringify(result)),
-                    });
-                    const followupResponse = await this.anthropic.messages.create({
-                        model: "claude-sonnet-4-20250514",
-                        max_tokens: 1000,
-                        messages,
-                    });
-                    finalText.push(followupResponse.content[0].type === "text" ? followupResponse.content[0].text : "");
+                    // Local handler
+                    result = await this.localToolHandlers[toolName](toolArgs);
+                    finalText.push(`[Local → ${toolName}(${JSON.stringify(toolArgs)})]`);
                 }
                 else {
-                    const result = await this.mcp.callTool({
+                    // Remote MCP server tool
+                    const mcpResult = await this.mcp.callTool({
                         name: toolName,
                         arguments: toolArgs,
                     });
-                    finalText.push(`[Calling tool ${toolName} with args ${JSON.stringify(toolArgs)}]`);
-                    messages.push({
-                        role: "user",
-                        content: result.content,
-                    });
-                    const followupResponse = await this.anthropic.messages.create({
-                        model: "claude-sonnet-4-20250514",
-                        max_tokens: 1000,
-                        messages,
-                    });
-                    finalText.push(followupResponse.content[0].type === "text" ? followupResponse.content[0].text : "");
+                    // Extract text content from MCP result
+                    const textContent = Array.isArray(mcpResult.content)
+                        ? mcpResult.content
+                            .filter((block) => block.type === "text")
+                            .map((block) => block.text)
+                            .join("")
+                        : "";
+                    result = textContent || JSON.stringify(mcpResult);
+                    finalText.push(`[MCP → ${toolName}(${JSON.stringify(toolArgs)})]`);
                 }
+                // Add tool result to conversation
+                messages.push({
+                    role: "user",
+                    content: typeof result === "string" ? result : (result.content ?? JSON.stringify(result)),
+                });
             }
         }
-        return finalText.join("\n");
+        return finalText.join("\n\n");
     }
     async chatLoop() {
         const rl = promises_1.default.createInterface({
             input: process.stdin,
             output: process.stdout,
         });
+        console.log("\nMCP Client Started!");
+        console.log("Type your queries or 'quit' to exit.\n");
         try {
-            console.log("\nMCP Client Started!");
-            console.log("Type your queries or 'quit' to exit.");
             while (true) {
-                const message = await rl.question("\nQuery: ");
-                if (message.toLowerCase() === "quit") {
+                const message = await rl.question("Query: ");
+                if (message.trim().toLowerCase() === "quit") {
                     break;
                 }
+                if (!message.trim())
+                    continue;
+                console.log("\nThinking...");
                 const response = await this.processQuery(message);
-                console.log("\n" + response);
+                console.log("\n" + response + "\n");
             }
         }
         finally {
@@ -167,7 +234,9 @@ class MCPClient {
         }
     }
     async cleanup() {
-        await this.mcp.close();
+        if (this.transport) {
+            await this.mcp.close();
+        }
     }
 }
 exports.MCPClient = MCPClient;

@@ -1,12 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.walletAccount = exports.publicClient = exports.cronosTestnet = void 0;
-const viem_1 = require("viem");
+import { createWalletClient, createPublicClient, http } from "viem";
 //import { cronosTestnet } from "viem/chains";
-const accounts_1 = require("viem/accounts");
-const config_1 = require("./config");
-exports.cronosTestnet = {
-    id: config_1.config.chainId,
+import { privateKeyToAccount } from "viem/accounts";
+import { config } from "./config.js";
+export const cronosTestnet = {
+    id: config.chainId,
     name: "Cronos Testnet",
     nativeCurrency: {
         name: "TCRO",
@@ -14,16 +11,16 @@ exports.cronosTestnet = {
         decimals: 18,
     },
     rpcUrls: {
-        default: { http: [config_1.config.rpc] },
+        default: { http: [config.rpc] },
     },
 };
-exports.publicClient = (0, viem_1.createPublicClient)({
-    chain: exports.cronosTestnet,
-    transport: (0, viem_1.http)(),
+export const publicClient = createPublicClient({
+    chain: cronosTestnet,
+    transport: http(),
 });
-const account = (0, accounts_1.privateKeyToAccount)(`0x${config_1.config.agentKey}`);
-exports.walletAccount = (0, viem_1.createWalletClient)({
-    chain: exports.cronosTestnet,
-    transport: (0, viem_1.http)(),
+const account = privateKeyToAccount(`0x${config.agentKey}`);
+export const walletAccount = createWalletClient({
+    chain: cronosTestnet,
+    transport: http(),
     account: account,
 });

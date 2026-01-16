@@ -1,29 +1,23 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.MCPClient = void 0;
-const sdk_1 = require("@anthropic-ai/sdk");
-const index_js_1 = require("@modelcontextprotocol/sdk/client/index.js");
-const stdio_js_1 = require("@modelcontextprotocol/sdk/client/stdio.js");
-const promises_1 = __importDefault(require("readline/promises"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const priceFeed_1 = require("./priceFeed");
-dotenv_1.default.config();
+import { Anthropic } from "@anthropic-ai/sdk";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import readline from "readline/promises";
+import dotenv from "dotenv";
+import { getCroPriceInUsdc } from "./priceFeed.js";
+dotenv.config();
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
 }
-class MCPClient {
+export class MCPClient {
     constructor() {
         this.transport = null;
         this.tools = [];
         this.localToolHandlers = {};
-        this.anthropic = new sdk_1.Anthropic({
+        this.anthropic = new Anthropic({
             apiKey: ANTHROPIC_API_KEY,
         });
-        this.mcp = new index_js_1.Client({ name: "mcp-client-cli", version: "1.0.0" });
+        this.mcp = new Client({ name: "mcp-client-cli", version: "1.0.0" });
         // ── Properly formatted tools with required input_schema ──
         this.tools = [
             {
@@ -87,7 +81,7 @@ class MCPClient {
         // Local tool implementations
         this.localToolHandlers["price_get_cro"] = async () => {
             try {
-                const price = await (0, priceFeed_1.getCroPriceInUsdc)();
+                const price = await getCroPriceInUsdc();
                 return { content: JSON.stringify({ price, currency: "USDC", timestamp: new Date().toISOString() }) };
             }
             catch (err) {
@@ -128,7 +122,7 @@ class MCPClient {
             const command = isPy
                 ? process.platform === "win32" ? "python" : "python3"
                 : process.execPath;
-            this.transport = new stdio_js_1.StdioClientTransport({
+            this.transport = new StdioClientTransport({
                 command,
                 args: [serverScriptPath],
             });
@@ -150,6 +144,10 @@ class MCPClient {
     async processQuery(query) {
         const messages = [
             {
+                role: "assistant",
+                content: "You are an AI assistant that can use tools to answer user queries. Use the available tools when needed to provide accurate and helpful responses. and use the tool once and do not loop on responses and hallucinate.",
+            },
+            {
                 role: "user",
                 content: query,
             },
@@ -170,7 +168,8 @@ class MCPClient {
                 }
             }
             // Handle tool use
-            const toolUseBlocks = response.content.filter(b => b.type === "tool_use");
+            // Use the imported ToolUseBlock type directly in the filtering logic.
+            const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
             if (toolUseBlocks.length === 0) {
                 // No more tool calls → final answer
                 break;
@@ -210,7 +209,7 @@ class MCPClient {
         return finalText.join("\n\n");
     }
     async chatLoop() {
-        const rl = promises_1.default.createInterface({
+        const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
         });
@@ -239,4 +238,3 @@ class MCPClient {
         }
     }
 }
-exports.MCPClient = MCPClient;

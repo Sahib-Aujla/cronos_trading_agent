@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCroPriceInUsdc = getCroPriceInUsdc;
-async function getCroPriceInUsdc() {
+export async function getCroPriceInUsdc() {
     try {
         const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=crypto-com-chain&vs_currencies=usd,usdc&include_24hr_change=true&include_market_cap=true');
         if (!response.ok)

@@ -2,12 +2,13 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import {
     MessageParam,
     Tool,
+    ToolUseBlock,
 } from "@anthropic-ai/sdk/resources/messages/messages.mjs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import readline from "readline/promises";
 import dotenv from "dotenv";
-import { getCroPriceInUsdc } from "./priceFeed";
+import { getCroPriceInUsdc } from "./priceFeed.js";
 
 dotenv.config();
 
@@ -169,6 +170,10 @@ export class MCPClient {
     async processQuery(query: string) {
         const messages: MessageParam[] = [
             {
+                role: "assistant",
+                content: "You are an AI assistant that can use tools to answer user queries. Use the available tools when needed to provide accurate and helpful responses. and use the tool once and do not loop on responses and hallucinate.",
+            },
+            {
                 role: "user",
                 content: query,
             },
@@ -193,7 +198,8 @@ export class MCPClient {
             }
 
             // Handle tool use
-            const toolUseBlocks = response.content.filter(b => b.type === "tool_use");
+            // Use the imported ToolUseBlock type directly in the filtering logic.
+            const toolUseBlocks = response.content.filter((b): b is ToolUseBlock => b.type === "tool_use");
 
             if (toolUseBlocks.length === 0) {
                 // No more tool calls → final answer

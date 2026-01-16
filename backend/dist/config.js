@@ -1,14 +1,11 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.config = void 0;
-require("dotenv/config");
+import "dotenv/config";
 function must(name) {
     const v = process.env[name];
     if (!v)
         throw new Error(`Missing env ${name}`);
     return v;
 }
-exports.config = {
+export const config = {
     port: Number(must("PORT")),
     rpc: must("CRONOS_RPC"),
     chainId: Number(must("CHAIN_ID")),

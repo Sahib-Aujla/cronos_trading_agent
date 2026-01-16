@@ -1,7 +1,7 @@
 import { createWalletClient, createPublicClient, http } from "viem";
 //import { cronosTestnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import { config } from "./config";
+import { config } from "./config.js";
 
 
 export const cronosTestnet = {

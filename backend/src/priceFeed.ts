@@ -1,31 +1,54 @@
+let cachedPrice: number | null = null;
+let lastFetch = 0;
+
+
 export async function getCroPriceInUsdc() {
+    const now = Date.now();
+
+    if (cachedPrice && now - lastFetch < 30_000) {
+        return cachedPrice; // 30s cache
+    }
     try {
         const response = await fetch(
-            'https://api.coingecko.com/api/v3/simple/price?ids=crypto-com-chain&vs_currencies=usd,usdc&include_24hr_change=true&include_market_cap=true'
+            "https://api.coingecko.com/api/v3/simple/price" +
+            "?ids=crypto-com-chain" +
+            "&vs_currencies=usd,usdc" +
+            "&include_24hr_change=true" +
+            "&include_market_cap=true",
+            {
+                headers: {
+                    "Accept": "application/json",
+                    "User-Agent": "cronos-trading-bot/1.0 (contact: sahibpreetsingh229@gmail.com)",
+                },
+            }
         );
 
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) {
+            const text = await response.text();
+            console.error("CoinGecko error:", response.status, text);
+            throw new Error(`CoinGecko HTTP ${response.status}`);
+        }
 
         const data = await response.json();
-        const coin = data && data['crypto-com-chain'];
+        const coin = data?.["crypto-com-chain"];
 
         if (!coin) {
-            console.error('Unexpected response shape from Coingecko:', data);
+            console.error("Unexpected response shape:", data);
             return undefined;
         }
 
-        // prefer `usd`, fall back to `usdc`, then any numeric value
-        const price = (typeof coin.usd === 'number' && coin.usd) || (typeof coin.usdc === 'number' && coin.usdc) || Object.values(coin).find(v => typeof v === 'number');
+        const price = (
+            (typeof coin.usd === "number" && coin.usd) ||
+            (typeof coin.usdc === "number" && coin.usdc)
+        );
 
-        if (typeof price !== 'number') {
-            console.error('Price not found in response:', coin);
-            return undefined;
-        }
+        cachedPrice = price;
+        lastFetch = now;
 
-        console.log('Fetched CRO price data:', coin);
-        console.log(`CRO Price: $${price.toFixed(4)} USD`);
         return price;
+
     } catch (error) {
-        console.error('Error fetching CRO price:', error);
+        console.error("Error fetching CRO price:", error);
+        return undefined;
     }
 }

@@ -15,8 +15,8 @@ export async function getCroPriceInUsdc() {
             console.error('Price not found in response:', coin);
             return undefined;
         }
-        console.log('Fetched CRO price data:', coin);
-        console.log(`CRO Price: $${price.toFixed(4)} USD`);
+        // console.log('Fetched CRO price data:', coin);
+        // console.log(`CRO Price: $${price.toFixed(4)} USD`);
         return price;
     }
     catch (error) {

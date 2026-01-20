@@ -1,32 +1,19 @@
-import { createWalletClient, createPublicClient, http } from "viem";
-//import { cronosTestnet } from "viem/chains";
-import { privateKeyToAccount } from "viem/accounts";
-import { config } from "./config.js";
+import { defineChain } from "viem";
 
-
-export const cronosTestnet = {
-    id: config.chainId,
-    name: "Cronos Testnet",
-    nativeCurrency: {
-        name: "TCRO",
-        symbol: "TCRO",
-        decimals: 18,
+export const cronosTestnet = defineChain({
+  id: 338,
+  name: "Cronos Testnet",
+  nativeCurrency: {
+    name: "Test CRO",
+    symbol: "TCRO",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://evm-t3.cronos.org"],
     },
-    rpcUrls: {
-        default: { http: [config.rpc] },
-    },
-};
-
-export const publicClient = createPublicClient({
-    chain: cronosTestnet,
-    transport: http(),
+  },
 });
 
-
-const account = privateKeyToAccount(`0x${config.agentKey}`);
-
-export const walletAccount = createWalletClient({
-    chain: cronosTestnet,
-    transport: http(),
-    account: account,
-});
+export const FACILITATOR_URL =
+  "https://x402-facilitator-testnet.crypto.com";

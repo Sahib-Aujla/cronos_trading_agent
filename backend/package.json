@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type": "module", 
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,12 +12,14 @@
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "@crypto.com/facilitator-client": "^1.0.2",
+    "@crypto.com/facilitator-client": "^1.0.4",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "viem": "^2.43.5"
+    "install": "^0.13.0",
+    "npm": "^11.7.0",
+    "viem": "^2.44.4"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

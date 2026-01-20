@@ -2,6 +2,9 @@ let cachedPrice: number | null = null;
 let lastFetch = 0;
 
 
+
+
+
 export async function getCroPriceInUsdc() {
     const now = Date.now();
 

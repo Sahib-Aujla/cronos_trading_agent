@@ -1,0 +1,7 @@
+{
+  "transactions": [
+    {
+      "rpc": "https://evm-t3.cronos.org"
+    }
+  ]
+}

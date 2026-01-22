@@ -20,13 +20,10 @@ contract DeploySmartWallet is Script {
 
         vm.startBroadcast();
 
-        SmartWallet wallet = new SmartWallet(
-            agent,
-            dailyLimit,
-            router,
-            wcro
-        );
+        SmartWallet wallet = new SmartWallet(agent, dailyLimit, router, wcro);
 
+        wallet.allowedTokens(0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0); // devUSDC.e
+        wallet.allowedTokens(wcro);
         vm.stopBroadcast();
 
         console.log("SmartWallet deployed at:", address(wallet));

@@ -2,6 +2,11 @@ import { walletClient, publicClient } from "./viemClient.js";
 import { SmartWalletABI } from "./abi/SmartWallet.js";
 import { ADDRESSES, TRADE_CONFIG } from "./viem.js";
 import { getMinAmountOut } from "./vvsQuote.js";
+const path = [
+    ADDRESSES.USDC,
+    ADDRESSES.VVS,
+    ADDRESSES.WCRO,
+];
 
 export async function executeSmartWalletSwap(params: {
     tokenIn: `0x${string}`;
@@ -11,9 +16,8 @@ export async function executeSmartWalletSwap(params: {
     const { tokenIn, tokenOut, amountIn } = params;
 
     const minAmountOut = await getMinAmountOut(
-        ADDRESSES.VVS_ROUTER as `0x${string}`,
-        tokenIn,
-        tokenOut,
+        ADDRESSES.VVS_ROUTER,
+        path,
         amountIn,
         TRADE_CONFIG.slippageBps
     );

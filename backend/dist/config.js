@@ -7,12 +7,7 @@ function must(name) {
 }
 export const config = {
     port: Number(must("PORT")),
-    rpc: must("CRONOS_RPC"),
+    rpc: must("CRONOS_RPC_URL"),
     chainId: Number(must("CHAIN_ID")),
     agentKey: must("AGENT_PRIVATE_KEY"),
-    wallet: must("AGENT_WALLET"),
-    usdc: must("USDC"),
-    cro: must("CRO"),
-    router: must("DEX_ROUTER"),
-    receiver: must("PAYMENT_RECEIVER"),
 };

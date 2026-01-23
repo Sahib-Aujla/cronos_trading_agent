@@ -1,19 +1,32 @@
-import { CronosNetwork, Facilitator } from "@crypto.com/facilitator-client";
+// x402.ts
+import { Facilitator, CronosNetwork, VerifyRequest, X402VerifyResponse } from "@crypto.com/facilitator-client";
+
+export interface X402VerifyResponseExtended extends X402VerifyResponse {
+  amount?: bigint;
+  asset?: string;
+  referenceId?: string;
+}
 
 export const facilitator = new Facilitator({
-    network: "testnet" as CronosNetwork, // cronos testnet
+  network: "testnet" as CronosNetwork,
 });
 
-export async function verifyX402Payment(paymentPayload: any) {
-    const result = await facilitator.verifyPayment(paymentPayload);
+export async function verifyX402Payment(payload: VerifyRequest) {
+  const res = (await facilitator.verifyPayment(
+    payload
+  )) as X402VerifyResponseExtended;
 
-    if (!result.valid) {
-        throw new Error("x402 payment invalid");
-    }
+  if (!res.isValid) {
+    throw new Error(`x402 invalid: ${res.invalidReason}`);
+  }
 
-    return {
-        payer: result.payer,
-        amount: result.amount,
-        asset: result.asset,
-    };
+  if (res.amount == null || res.asset == null) {
+    throw new Error("x402 missing amount or asset");
+  }
+
+  return {
+    amount: res.amount,
+    asset: res.asset,
+    referenceId: res.referenceId ?? null,
+  };
 }
